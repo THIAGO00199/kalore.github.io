@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Reflorestamento Global</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c5f2d;
+            --secondary-color: #4c956c;
+            --accent-color: #f5f5dc;
+            --text-color: #333;
+            --light-text: #f8f8f8;
+            --card-bg: #ffffff;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f8f0;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+            z-index: 1;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        input, select, button {
+            padding: 12px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: var(--light-text);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-card {
+            font-size: 1.1em;
+            color: var(--primary-color);
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid var(--primary-color);
+            background-color: #f9fff9;
+            border-radius: 5px;
+        }
+
+        .result-card h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .result-card i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .arvore-marker {
+            background-color: var(--primary-color);
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f0fff0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 5px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Tooltip customizado */
+        .leaflet-tooltip {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--primary-color);
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Popup customizado */
+        .leaflet-popup-content {
+            min-width: 200px;
+        }
+
+        .popup-content {
+            font-size: 14px;
+        }
+
+        .popup-title {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .popup-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1><i class="fas fa-tree"></i> Monitor de Reflorestamento Global</h1>
+    
+    <div class="container">
+        <div class="card">
+            <h2><i class="fas fa-map-marked-alt"></i> Localização de Árvores Plantadas</h2>
+            
+            <div class="input-group">
+                <label for="dataSelecionada"><i class="fas fa-calendar-alt"></i> Selecione a data:</label>
+                <input type="date" id="dataSelecionada">
+            </div>
+            
+            <div class="input-group">
+                <label for="regiao"><i class="fas fa-globe-americas"></i> Região:</label>
+                <select id="regiao">
+                    <option value="global">Global</option>
+                    <option value="america-sul">América do Sul</option>
+                    <option value="america-norte">América do Norte</option>
+                    <option value="europa">Europa</option>
+                    <option value="asia">Ásia</option>
+                    <option value="africa">África</option>
+                    <option value="oceania">Oceania</option>
+                </select>
+            </div>
+            
+            <button id="buscarDados" onclick="carregarDados()">
+                <span id="buttonText">Buscar Dados</span>
+                <span id="buttonLoading" class="loading" style="display: none;"></span>
+            </button>
+            
+            <div id="map"></div>
+            
+            <div id="contagemArvores" class="result-card">
+                <h3><i class="fas fa-info-circle"></i> Informações</h3>
+                <p>Selecione uma data e clique em "Buscar Dados" para visualizar as árvores plantadas.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2><i class="fas fa-chart-line"></i> Impacto Climático</h2>
+            
+            <div id="resultadoIA" class="result-card">
+                <h3><i class="fas fa-leaf"></i> Impacto Ambiental</h3>
+                <p>Os dados de impacto serão calculados após a busca.</p>
+            </div>
+            
+            <div id="previsaoRecuperacao" class="result-card">
+                <h3><i class="fas fa-clock"></i> Previsão de Recuperação</h3>
+                <p>As projeções serão exibidas aqui.</p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-co2">0</div>
+                    <div class="stat-label">CO2 Absorvido (ton/ano)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-temp">0</div>
+                    <div class="stat-label">Redução de Temperatura (°C)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-oxigenio">0</div>
+                    <div class="stat-label">Oxigênio Gerado (ton/ano)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-tempo">0</div>
+                    <div class="stat-label">Anos para Meta</div>
+                </div>
+            </div>
+            
+            <div id="detalhesImpacto">
+                <h3><i class="fas fa-chart-bar"></i> Visualização de Dados</h3>
+                <p>Os gráficos serão gerados após a análise.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Biblioteca para animar números -->
+    <script src="https://cdn.jsdelivr.net/npm/countup.js@2.3.2/dist/countUp.min.js"></script>
+
+    <script>
+        // Inicializa o mapa
+        const map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        // Variáveis globais
+        let co2Chart = null;
+        let tempChart = null;
+        let markers = [];
+        let countUpInstances = {};
+
+        // API Simulada - Dados mais realistas
+        async function fetchTreeData(date, region) {
+            // Mostra loading
+            toggleLoading(true);
+            
+            // Simula delay de rede
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Gera dados baseados na região
+            const regionData = {
+                'global': { count: 150, latRange: [-60, 80], lngRange: [-180, 180] },
+                'america-sul': { count: 40, latRange: [-56, 13], lngRange: [-82, -35] },
+                'america-norte': { count: 35, latRange: [15, 72], lngRange: [-170, -55] },
+                'europa': { count: 30, latRange: [35, 70], lngRange: [-25, 60] },
+                'asia': { count: 45, latRange: [-10, 60], lngRange: [25, 150] },
+                'africa': { count: 25, latRange: [-35, 37], lngRange: [-20, 55] },
+                'oceania': { count: 15, latRange: [-50, 0], lngRange: [110, 180] }
+            };
+            
+            const config = regionData[region] || regionData['global'];
+            const especies = ["Ipê", "Mogno", "Pau Brasil", "Cedro", "Jacarandá", "Sibipiruna", 
+                            "Eucalipto", "Pinho", "Carvalho", "Bétula", "Acácia", "Teixo"];
+            
+            const arvores = [];
+            
+            for (let i = 0; i < config.count; i++) {
+                const lat = config.latRange[0] + Math.random() * 
+                          (config.latRange[1] - config.latRange[0]);
+                const lng = config.lngRange[0] + Math.random() * 
+                          (config.lngRange[1] - config.lngRange[0]);
+                const especie = especies[Math.floor(Math.random() * especies.length)];
+                const idade = Math.floor(Math.random() * 5) + 1;
+                const co2Absorvido = (Math.random() * 10 + 10).toFixed(2);
+                
+                arvores.push({
+                    lat,
+                    lng,
+                    especie,
+                    idade,
+                    co2Absorvido
+                });
+            }
+            
+            toggleLoading(false);
+            return arvores;
+        }
+
+        function toggleLoading(show) {
+            const button = document.getElementById('buscarDados');
+            const buttonText = document.getElementById('buttonText');
+            const buttonLoading = document.getElementById('buttonLoading');
+            
+            if (show) {
+                button.disabled = true;
+                buttonText.textContent = "Carregando...";
+                buttonLoading.style.display = "inline-block";
+            } else {
+                button.disabled = false;
+                buttonText.textContent = "Buscar Dados";
+                buttonLoading.style.display = "none";
+            }
+        }
+
+        function clearMarkers() {
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+        }
+
+        async function carregarDados() {
+            const data = document.getElementById('dataSelecionada').value;
+            const regiao = document.getElementById('regiao').value;
+            
+            if (!data) {
+                alert("Por favor, selecione uma data");
+                return;
+            }
+            
+            try {
+                // Limpa o mapa e gráficos anteriores
+                clearMarkers();
+                if (co2Chart) co2Chart.destroy();
+                if (tempChart) tempChart.destroy();
+                
+                // Busca dados
+                const arvores = await fetchTreeData(data, regiao);
+                
+                // Atualiza contagem
+                document.getElementById('contagemArvores').innerHTML = `
+                    <h3><i class="fas fa-tree"></i> ${arvores.length} árvores plantadas em ${formatDate(data)}</h3>
+                    <p><i class="fas fa-globe-americas"></i> Região: ${getRegionName(regiao)}</p>
+                    <p>Clique nos marcadores para mais detalhes</p>
+                `;
+                
+                // Adiciona marcadores no mapa
+                arvores.forEach(arvore => {
+                    const marker = L.marker([arvore.lat, arvore.lng], {
+                        icon: L.divIcon({
+                            className: 'arvore-marker',
+                            iconSize: [18, 18]
+                        })
+                    }).addTo(map);
+                    
+                    marker.bindPopup(createPopupContent(arvore));
+                    markers.push(marker);
+                });
+                
+                // Ajusta o zoom para mostrar todas as árvores
+                if (arvores.length > 0) {
+                    const markerGroup = new L.featureGroup(markers);
+                    map.fitBounds(markerGroup.getBounds().pad(0.5));
+                }
+                
+                // Calcula impacto
+                calcularImpacto(arvores);
+                
+            } catch (error) {
+                console.error("Erro ao carregar dados:", error);
+                document.getElementById('contagemArvores').innerHTML = `
+                    <h3><i class="fas fa-exclamation-triangle"></i> Erro ao carregar dados</h3>
+                    <p>Por favor, tente novamente mais tarde.</p>
+                `;
+                toggleLoading(false);
+            }
+        }
+
+        function createPopupContent(arvore) {
+            return `
+                <div class="popup-content">
+                    <div class="popup-title">${arvore.especie}</div>
+                    <div class="popup-row">
+                        <span class="popup-label"><i class="fas fa-calendar"></i> Idade:</span>
+                        <span>${arvore.idade} ano(s)</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label"><i class="fas fa-cloud"></i> CO2 Absorvido:</span>
+                        <span>${arvore.co2Absorvido} kg/ano</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label"><i class="fas fa-map-marker-alt"></i> Local:</span>
+                        <span>${arvore.lat.toFixed(4)}, ${arvore.lng.toFixed(4)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function calcularImpacto(arvores) {
+            // Constantes para cálculos
+            const CO2_POR_ARVORE_ANO = 22.5; // kg/ano por árvore (média)
+            const OXIGENIO_POR_ARVORE = 118; // kg/ano por árvore
+            const RESFRIAMENTO_POR_1000_ARVORES = 0.015; // °C por 1000 árvores em 10 anos
+            const META_REDUCAO_CO2 = 1000000; // toneladas de CO2 para meta
+            const EMISSOES_ATUAIS = 40000; // toneladas de CO2/ano (simulado)
+            
+            const numArvores = arvores.length;
+            const reducaoCO2 = (numArvores * CO2_POR_ARVORE_ANO) / 1000; // toneladas/ano
+            const oxigenioGerado = (numArvores * OXIGENIO_POR_ARVORE) / 1000; // toneladas/ano
+            const reducaoTemperatura = (numArvores * RESFRIAMENTO_POR_1000_ARVORES) / 1000;
+            
+            // Calcula anos para atingir meta (considerando aumento progressivo)
+            const anosParaRecuperacao = calcularTempoParaMeta(reducaoCO2, META_REDUCAO_CO2);
+            
+            // Atualiza a UI
+            document.getElementById('resultadoIA').innerHTML = `
+                <h3><i class="fas fa-leaf"></i> Impacto Ambiental</h3>
+                <p><i class="fas fa-tree"></i> <b>${numArvores.toLocaleString()}</b> árvores plantadas</p>
+                <p><i class="fas fa-smog"></i> <b>${reducaoCO2.toFixed(2)} toneladas</b> de CO2 absorvidas/ano</p>
+                <p><i class="fas fa-wind"></i> <b>${oxigenioGerado.toFixed(2)} toneladas</b> de oxigênio geradas/ano</p>
+                <p><i class="fas fa-temperature-low"></i> <b>${reducaoTemperatura.toFixed(5)}°C</b> de resfriamento em 10 anos</p>
+            `;
+
+            document.getElementById('previsaoRecuperacao').innerHTML = `
+                <h3><i class="fas fa-clock"></i> Previsão de Recuperação</h3>
+                <p><i class="fas fa-bullseye"></i> Meta de redução: 1,000,000 ton CO2</p>
+                <p><i class="fas fa-tachometer-alt"></i> Redução atual: ${reducaoCO2.toFixed(2)} ton CO2/ano</p>
+                <p><i class="fas fa-hourglass-half"></i> Estimativa: <b>${anosParaRecuperacao}</b> anos para atingir a meta</p>
+            `;
+            
+            // Anima os números
+            animateValue('stat-co2', 0, reducaoCO2, 2000);
+            animateValue('stat-temp', 0, reducaoTemperatura, 2000);
+            animateValue('stat-oxigenio', 0, oxigenioGerado, 2000);
+            animateValue('stat-tempo', 0, anosParaRecuperacao, 2000);
+            
+            // Atualiza gráficos
+            atualizarGraficos(reducaoCO2, reducaoTemperatura, oxigenioGerado);
+        }
+
+        function calcularTempoParaMeta(reducaoAtual, meta) {
+            // Modelo simplificado que considera crescimento exponencial
+            const taxaCrescimento = 0.1; // 10% ao ano
+            let anos = 0;
+            let reducaoAcumulada = 0;
+            let reducaoAnual = reducaoAtual;
+            
+            while (reducaoAcumulada < meta && anos < 1000) {
+                reducaoAcumulada += reducaoAnual;
+                reducaoAnual *= (1 + taxaCrescimento);
+                anos++;
+            }
+            
+            return anos > 1000 ? "1000+" : anos;
+        }
+
+        function animateValue(id, start, end, duration) {
+            if (countUpInstances[id]) {
+                countUpInstances[id].update(end);
+            } else {
+                const element = document.getElementById(id);
+                countUpInstances[id] = new CountUp(id, end, {
+                    startVal: start,
+                    duration: duration / 1000,
+                    decimalPlaces: end < 1 ? 5 : end < 10 ? 3 : 2,
+                    separator: ','
+                });
+                countUpInstances[id].start();
+            }
+        }
+
+        function atualizarGraficos(reducaoCO2, reducaoTemperatura, oxigenioGerado) {
+            document.getElementById('detalhesImpacto').innerHTML = `
+                <h3><i class="fas fa-chart-bar"></i> Visualização de Dados</h3>
+                <div class="chart-container">
+                    <canvas id="co2Chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            `;
+            
+            // Gráfico de CO2 e Oxigênio
+            const co2Ctx = document.getElementById('co2Chart').getContext('2d');
+            co2Chart = new Chart(co2Ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['CO2 Absorvido', 'Oxigênio Gerado'],
+                    datasets: [{
+                        label: 'Toneladas por ano',
+                        data: [reducaoCO2, oxigenioGerado],
+                        backgroundColor: [
+                            'rgba(44, 95, 45, 0.7)',
+                            'rgba(76, 149, 108, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(44, 95, 45, 1)',
+                            'rgba(76, 149, 108, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Impacto Ambiental Anual',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Toneladas'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Gráfico de Temperatura
+            const tempCtx = document.getElementById('tempChart').getContext('2d');
+            tempChart = new Chart(tempCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Hoje', 'Em 5 anos', 'Em 10 anos'],
+                    datasets: [{
+                        label: 'Redução de Temperatura (°C)',
+                        data: [0, reducaoTemperatura/2, reducaoTemperatura],
+                        borderColor: 'rgba(139, 195, 74, 1)',
+                        backgroundColor: 'rgba(139, 195, 74, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.2,
+                        fill: true,
+                        pointBackgroundColor: 'rgba(44, 95, 45, 1)',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Projeção de Resfriamento',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Redução de Temperatura (°C)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('pt-BR', options);
+        }
+
+        function getRegionName(regionCode) {
+            const regions = {
+                'global': 'Global',
+                'america-sul': 'América do Sul',
+                'america-norte': 'América do Norte',
+                'europa': 'Europa',
+                'asia': 'Ásia',
+                'africa': 'África',
+                'oceania': 'Oceania'
+            };
+            return regions[regionCode] || 'Global';
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            // Define a data padrão como hoje
+            const hoje = new Date();
+            const dataFormatada = hoje.toISOString().split('T')[0];
+            document.getElementById('dataSelecionada').value = dataFormatada;
+            
+            // Carrega dados iniciais
+            carregarDados();
+        });
+    </script>
+</body>
+</html>
